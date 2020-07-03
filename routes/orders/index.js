@@ -18,22 +18,29 @@ module.exports = [
 		url: '/ordersList',
 		method: 'post',
 		callback: (req, res) => {
-			console.log(req.body);
 			let phone = req.body.phone;
 			if(!phone) res.send({code: -1, msg: '用户未登录'});
 			
 			OrderModel.find({phone}, (err, data) => {
 				if(err) return console.error(err);
-				// res.send({code: 0, data: data});
-				let ids = [];
-				data.map(item => {
-					if(ids.indexOf(item.purchasedGoodsId) === -1) {
-						ids.push(item.purchasedGoodsId);
-					}
+				const orders = data;
+				const ordersPromise = orders.map(item => {
+					return new Promise((resolve, reject) => {
+						GoodsModel.find({id: {$in: item.purchasedGoodsIds}}, (err, data) => {
+							if(err) reject(err);
+							const ordersItem = {
+								purchasedGoods: data,
+								...item._doc
+							};
+							
+							resolve(ordersItem);
+						});
+					});
 				});
-
-				GoodsModel.find({id: {$in: ids}}, (err, data) => {
-					res.send({code: 0, data: data});
+				Promise.all(ordersPromise).then(data => {
+					res.send({code: 0, msg: '成功', data: data});
+				}).catch(err => {
+					res.send({code: -1, msg: '获取失败'});
 				});
 			});
 		}
@@ -47,34 +54,23 @@ module.exports = [
 			let obj = {
 				phone: body.phone,
 				storeName: body.storeName,
-				totalPrice: body.totalPrice
+				totalPrice: body.totalPrice,
+				purchasedGoodsTotal: body.purchasedGoodsTotal
 			};
 			obj.orderId = uuidv1();
+
+			//根据日期生成orderCode
 			let currentTime = new Date();
-			obj.orderTimeStr = currentTime.getFullYear() + '-' + currentTime.getMonth() + '-' + currentTime.getDay() + ' ' + currentTime.getHours() + ':' + currentTime.getMinutes() + ':' + currentTime.getSeconds();
-			obj.orderCode = 'ele' + currentTime.getFullYear() + currentTime.getMonth() + currentTime.getDay();
-			let purchasedGoodsIds = body.purchasedGoodsIds;
+			obj.orderTimeStr = currentTime.getFullYear() + '-' + (currentTime.getMonth() + 1) + '-' + currentTime.getDate() + ' ' + currentTime.getHours() + ':' + currentTime.getMinutes() + ':' + currentTime.getSeconds();
+			obj.orderCode = 'ele' + currentTime.getFullYear() + currentTime.getMonth() + currentTime.getDate() + obj.orderId;
+			
+			obj.purchasedGoodsIds = body.purchasedGoodsIds;
 
-			Utils.idsModel('OrderModel', purchasedGoodsIds.length).then(data => {
-				let orders = [];
-				let insId = data.id;
-				let endId = insId - purchasedGoodsIds.length + 1;
+			Utils.idsModel('OrderModel').then(data => {
+				//添加id
+				obj.id = data.id;
 
-				/*
-				 *前端返回格式: [{id: productId, number: Int}]
-				 */
-				if(purchasedGoodsIds && Array.isArray(purchasedGoodsIds) && purchasedGoodsIds.length > 0) {
-					purchasedGoodsIds.forEach(id => {
-						orders.push({
-							...obj,
-							purchasedGoodsId: id.id,
-							purchasedGoodsNumber: id.number,
-							id: endId ++
-						});
-					});
-				}
-				console.log(orders)
-				return Utils.insertPromise(OrderModel, orders); 
+				return Utils.insertPromise(OrderModel, obj); 
 			}).then(data => {
 				res.send({code: 0, msg: '新增成功', data: data});
 			}).catch(err => {

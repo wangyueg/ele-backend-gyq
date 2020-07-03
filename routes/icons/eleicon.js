@@ -13,7 +13,7 @@ module.exports = [
 				if(error) return console.error(error);
 				res.send({
 					code: 0,
-					data: eleicon[0]
+					data: eleicon[0] || {}
 				});
 			});	
 		}

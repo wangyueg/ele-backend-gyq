@@ -5,11 +5,11 @@ let OrderModel = new mongoose.model('Order', new mongoose.Schema({
 	storeName: {type: String}, //商店名称
 	orderStatus: {type: String, default: '等待商家接单'}, //订单描述
 	orderStatusCode: {type: Number, default: 1}, //订单状态
-	purchasedGoodsId: {type: Number, required: true}, //订单商品Id
+	purchasedGoodsIds: {type: Array, required: true}, //订单商品Ids
 	purchasedGoodsTotal: {type: Number, required: true, default: 1}, //订单商品数量
 	totalPrice: Number, //订单总额（扣除福利之后金额）
 	orderTimeStr: String, //订单日期
-	username: {type: Number, required: true}, //订单人
+	phone: {type: Number, required: true}, //订单人
 	orderId: {type: String, required: true}, //订单ID
 	orderCode: {type: String, required: true}, //订单编码
 	id: {type: Number, required: true} //ID
